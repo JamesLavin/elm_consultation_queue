@@ -51,7 +51,7 @@ initialConsultation3 =
     status = "Locked",
     specialty = "Behavioral Health",
     member_id = 924,
-    member_name = "James McDoogle" }
+    member_name = "Darth Vader" }
 
 initialConsultation4 : Consultation
 initialConsultation4 =
@@ -60,7 +60,7 @@ initialConsultation4 =
     status = "Requested",
     specialty = "Sexual Health",
     member_id = 1032,
-    member_name = "Melissa McCartney" }
+    member_name = "R2D2" }
 
 initialConsultation5 : Consultation
 initialConsultation5 =
@@ -69,9 +69,23 @@ initialConsultation5 =
     status = "Locked",
     specialty = "General Medical",
     member_id = 204,
-    member_name = "Diana Smith" }
+    member_name = "Clark Kent" }
 
-consultationsList = [ initialConsultation1, initialConsultation2, initialConsultation3, initialConsultation4, initialConsultation5 ]
+initialConsultation6 : Consultation
+initialConsultation6 =
+  { id = 61,
+    state = "FL",
+    status = "Cancelled",
+    specialty = "General Medical",
+    member_id = 894,
+    member_name = "Bruce Wayne" }
+
+consultationsList = [ initialConsultation1,
+                      initialConsultation2,
+                      initialConsultation3,
+                      initialConsultation4,
+                      initialConsultation5,
+                      initialConsultation6 ]
 
 type alias Model =
   { consultations: List Consultation,
@@ -166,6 +180,8 @@ buttonText consult =
     "Lock"
   else if consult.status == "Locked" then
     "Unlock"
+  else if consult.status == "Cancelled" then
+    ""
   else
     ""
 
@@ -184,38 +200,52 @@ showConsultation consult =
 allConsultations model =
   List.map showConsultation model.consultations
 
-requestedConsultations model =
-  List.map showConsultation (List.filter (\consult -> consult.status == "Requested") model.consultations)
+--filteredConsultations model status =
+--  List.map showConsultation (List.filter (\consult -> consult.status == status) model.consultations)
 
-completedConsultations model =
-  List.map showConsultation (List.filter (\consult -> consult.status == "Completed") model.consultations)
+filteredConsultations model status =
+  List.filter (\consult -> consult.status == status) model.consultations
+
+showFilteredConsultations model status =
+  List.map showConsultation (filteredConsultations model status)
+
+teladocImg =
+  img [ src "Teladoc_logo.jpg", style [ ("width", "150px"), ("height", "150px") ] ] []
+
+teladocHeadline =
+  div [ class "header" ] [
+    h1 [] [ text "Super Amazingly Awesome Teladoc Consultation Queue" ]
+  ]
+
+teladocConsultationQueues model =
+  div [] [
+    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+      h2 [] [ text "REQUESTED" ],
+      div [ ] (showFilteredConsultations model "Requested")
+    ]
+  ,
+    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+      h2 [] [ text "LOCKED" ],
+      div [ ] (showFilteredConsultations model "Locked")
+    ]
+  ,
+    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+      h2 [] [ text "CANCELLED" ],
+      div [ ] (showFilteredConsultations model "Cancelled")
+    ]
+  ,
+    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+      h2 [] [ text "COMPLETED" ],
+      div [ ] (showFilteredConsultations model "Completed")
+    ]
+  ]
 
 view : Model -> Html
 view model =
   div []
-    [
-      img [ src "Teladoc_logo.jpg", style [ ("width", "150px"), ("height", "150px") ] ] []
-    ,
-      div [ class "header" ] [
-        h1 [] [ text "Super Amazingly Awesome Teladoc Consultation Queue" ]
-      ]
-    ,
-      div [] [
-        span [ class "consultations", style [ ("width", "33%") ] ] [
-          h2 [] [ text "CONSULTATIONS" ],
-          div [ ] (allConsultations model)
-        ]
-      ,
-        span [ class "consultations", style [ ("width", "33%") ] ] [
-          h2 [] [ text "REQUESTED" ],
-          div [ ] (requestedConsultations model)
-        ]
-      ,
-        span [ class "consultations", style [ ("width", "33%") ] ] [
-          h2 [] [ text "COMPLETED" ],
-          div [ ] (completedConsultations model)
-        ]
-      ]
+    [ teladocImg
+    , teladocHeadline
+    , teladocConsultationQueues model
     ]
 
 
