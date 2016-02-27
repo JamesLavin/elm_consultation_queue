@@ -108,11 +108,16 @@ initialModel =
   }
 
 type Action = NoOp
---            | NewEvent (JsonEvent {})
---            | DisplayRequested Bool
+            | DisplayRequested Bool
+            | NewEvent (JsonEvent {})
 
 type alias ConsultationPayload a =
-  { a | id : Int }
+  { a | id : Int
+      , state: String
+      , status: String
+      , specialty: String
+      , member_id: Int
+      , member_name: String }
 
 type alias JsonEvent a =
   { a | action : String
@@ -147,10 +152,10 @@ removeDisplayRequested model =
 --update : Action -> Model -> Model
 update action model =
   case action of
---    NewEvent payload ->
---      process_new_event payload model
---    DisplayRequested boolean ->
---      model
+    NewEvent payload ->
+      process_new_event payload model
+    DisplayRequested boolean ->
+      model
     NoOp ->
       model
 
