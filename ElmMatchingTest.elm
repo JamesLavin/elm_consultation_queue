@@ -1,9 +1,9 @@
 
-module LiveChat where
+module ElmConsultQueue where
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, targetChecked)
+import Html.Events exposing (on, onClick, targetChecked)
 import Time exposing (..)
 import Signal exposing (Address, foldp)
 import Array
@@ -110,6 +110,8 @@ initialModel =
 type Action = NoOp
             | DisplayRequested Bool
             | NewEvent (JsonEvent {})
+            | Lock Consultation
+            | Complete Consultation
 
 type alias ConsultationPayload a =
   { a | id : Int
@@ -123,7 +125,7 @@ type alias JsonEvent a =
   { a | action : String
   ,     payload : ConsultationPayload {} }
 
---type Payload = CreateConsultationPayload
+--type Payload = ConsultationPayload
 --             | LockConsultationPayload
 --             | CancelConsultationPayload
 --             | CompleteConsultationPayload
@@ -155,6 +157,18 @@ update action model =
     NewEvent payload ->
       process_new_event payload model
     DisplayRequested boolean ->
+      model
+    Lock consult ->
+      let
+        this_consult_id = consult.id
+        convert_consultation consultation =
+          if consultation.id == this_consult_id then
+            { consultation | status = "Locked" }
+          else
+            consultation
+      in
+        { model | consultations = List.map convert_consultation model.consultations }
+    Complete consult ->
       model
     NoOp ->
       model
@@ -235,14 +249,28 @@ buttonText consult =
     ""
   else
     ""
-showConsultation : Consultation -> Html
-showConsultation consult =
+
+buttonAction : Consultation -> Action
+buttonAction consult =
+  if consult.status == "Completed" then
+    NoOp
+  else if consult.status == "Requested" then
+    Lock consult
+  else if consult.status == "Locked" then
+    Complete consult
+  else if consult.status == "Cancelled" then
+    NoOp
+  else
+    NoOp
+
+showConsultation : Address Action -> Consultation -> Html
+showConsultation address consult =
   div [ (consultStyle consult) ] [
     span [ class "consultation" ] [
       div [] [ text ("Consultation ID: " ++ (toString consult.id) ++ " / State: " ++ consult.state)],
       div [] [ text ("Status: " ++ consult.status ++ " / Specialty: " ++ consult.specialty)],
       div [] [ text ("Member: " ++ consult.member_name ++ " (ID: " ++ (toString consult.member_id) ++ ")")],
-      div [] [ (if (consult.status /= "Completed" && consult.status /= "Cancelled") then (button [] [ text (buttonText consult) ]) else br [] []) ]
+      div [] [ (if (consult.status /= "Completed" && consult.status /= "Cancelled") then (button [onClick address (buttonAction consult)] [ text (buttonText consult) ]) else br [] []) ]
     ]
   ]
 
@@ -250,15 +278,15 @@ ticker : Signal.Signal Int
 ticker =
   Signal.foldp (\_ val -> val + 1) 0 (Time.every Time.second)
 
---allConsultations : Model -> VirtualDom.Node
-allConsultations model =
-  List.map showConsultation model.consultations
-
 filteredConsultations model status =
   List.filter (\consult -> consult.status == status) model.consultations
 
-showFilteredConsultations model status =
-  List.map showConsultation (filteredConsultations model status)
+--showAllConsultations : Model -> VirtualDom.Node
+showAllConsultations address model =
+  List.map (showConsultation address) model.consultations
+
+showFilteredConsultations address model status =
+  List.map (showConsultation address) (filteredConsultations model status)
 
 teladocImg =
   img [ src "Teladoc_logo.jpg", style [ ("width", "150px"), ("height", "150px") ] ] []
@@ -268,64 +296,41 @@ teladocHeadline =
     h1 [] [ text "Super Amazingly Awesome Teladoc Consultation Queue" ]
   ]
 
---teladocConsultationQueues model =
---  div [] [
---    span [ class "consultations", consultQueueStyle ] [
---      h2 [] [ text "REQUESTED" ],
---      div [ ] (showFilteredConsultations model "Requested")
---    ]
---  ,
---    span [ class "consultations", consultQueueStyle ] [
---      h2 [] [ text "LOCKED" ],
---      div [ ] (showFilteredConsultations model "Locked")
---    ]
---  ,
---    span [ class "consultations", consultQueueStyle ] [
---      h2 [] [ text "CANCELLED" ],
---      div [ ] (showFilteredConsultations model "Cancelled")
---    ]
---  ,
---    span [ class "consultations", consultQueueStyle ] [
---      h2 [] [ text "COMPLETED" ],
---      div [ ] (showFilteredConsultations model "Completed")
---    ]
---  ]
-
-classConsultSpan model class =
+classConsultSpan address model class =
   case class of
     "Requested" ->
-      requestedConsultSpan model
+      requestedConsultSpan address model
     "Locked" ->
-      lockedConsultSpan model
+      lockedConsultSpan address model
     "Cancelled" ->
-      cancelledConsultSpan model
+      cancelledConsultSpan address model
     "Completed" ->
-      completedConsultSpan model
+      completedConsultSpan address model
     _ ->
-      completedConsultSpan model
+      completedConsultSpan address model
 
-requestedConsultSpan model =
+requestedConsultSpan address model =
   span [ class "consultations", consultQueueStyle ] [
     h2 [] [ text "REQUESTED" ],
-    div [ ] (showFilteredConsultations model "Requested")
+    div [ ] (showFilteredConsultations address model "Requested")
   ]
 
-lockedConsultSpan model =
+lockedConsultSpan address model =
   span [ class "consultations", consultQueueStyle ] [
     h2 [] [ text "LOCKED" ],
-    div [ ] (showFilteredConsultations model "Locked")
+    div [ ] (showFilteredConsultations address model "Locked")
   ]
 
-cancelledConsultSpan model =
+cancelledConsultSpan address model =
   span [ class "consultations", consultQueueStyle ] [
     h2 [] [ text "CANCELLED" ],
-    div [ ] (showFilteredConsultations model "Cancelled")
+    div [ ] (showFilteredConsultations address model "Cancelled")
   ]
 
-completedConsultSpan model =
+completedConsultSpan address model =
   span [ class "consultations", consultQueueStyle ] [
     h2 [] [ text "COMPLETED" ],
-    div [ ] (showFilteredConsultations model "Completed")
+    div [ ] (showFilteredConsultations address model "Completed")
   ]
 
 --teladocOptions address model =
@@ -333,9 +338,9 @@ completedConsultSpan model =
 --    checkbox address model.displayRequested DisplayRequested "Show requested"
 --  ]
 
-teladocConsultationQueues model =
+teladocConsultationQueues address model =
   div [] [
-    div [] (List.map (classConsultSpan model) model.displayedQueues )
+    div [] (List.map (classConsultSpan address model) model.displayedQueues )
   ]
 
 checkbox : Address Action -> Bool -> (Bool -> Action) -> String -> List Html
@@ -356,7 +361,7 @@ view address model =
     [ teladocImg
     , teladocHeadline
 --    , teladocOptions address model
-    , teladocConsultationQueues model
+    , teladocConsultationQueues address model
     ]
 
 modelSignal : Signal Model
