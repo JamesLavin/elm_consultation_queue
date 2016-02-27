@@ -91,6 +91,7 @@ type alias Model =
   { consultations: List Consultation,
     providers: List Provider,
     members: List Member,
+    displayedQueues: List String,
     author: String,
     action_string : String,
     newMessage : String,
@@ -102,6 +103,7 @@ initialModel =
   { consultations = consultationsList,
     providers = [],
     members = [],
+    displayedQueues = ["Requested", "Locked", "Cancelled", "Completed"],
     author = "Geoffrey",
     action_string = "",
     newMessage = "",
@@ -239,28 +241,77 @@ teladocHeadline =
     h1 [] [ text "Super Amazingly Awesome Teladoc Consultation Queue" ]
   ]
 
-teladocConsultationQueues model =
-  div [] [
-    span [ class "consultations", consultQueueStyle ] [
-      h2 [] [ text "REQUESTED" ],
-      div [ ] (showFilteredConsultations model "Requested")
-    ]
-  ,
-    span [ class "consultations", consultQueueStyle ] [
-      h2 [] [ text "LOCKED" ],
-      div [ ] (showFilteredConsultations model "Locked")
-    ]
-  ,
-    span [ class "consultations", consultQueueStyle ] [
-      h2 [] [ text "CANCELLED" ],
-      div [ ] (showFilteredConsultations model "Cancelled")
-    ]
-  ,
-    span [ class "consultations", consultQueueStyle ] [
-      h2 [] [ text "COMPLETED" ],
-      div [ ] (showFilteredConsultations model "Completed")
-    ]
+--teladocConsultationQueues model =
+--  div [] [
+--    span [ class "consultations", consultQueueStyle ] [
+--      h2 [] [ text "REQUESTED" ],
+--      div [ ] (showFilteredConsultations model "Requested")
+--    ]
+--  ,
+--    span [ class "consultations", consultQueueStyle ] [
+--      h2 [] [ text "LOCKED" ],
+--      div [ ] (showFilteredConsultations model "Locked")
+--    ]
+--  ,
+--    span [ class "consultations", consultQueueStyle ] [
+--      h2 [] [ text "CANCELLED" ],
+--      div [ ] (showFilteredConsultations model "Cancelled")
+--    ]
+--  ,
+--    span [ class "consultations", consultQueueStyle ] [
+--      h2 [] [ text "COMPLETED" ],
+--      div [ ] (showFilteredConsultations model "Completed")
+--    ]
+--  ]
+
+classConsultSpan model class =
+  case class of
+    "Requested" ->
+      requestedConsultSpan model
+    "Locked" ->
+      lockedConsultSpan model
+    "Cancelled" ->
+      cancelledConsultSpan model
+    "Completed" ->
+      completedConsultSpan model
+    _ ->
+      completedConsultSpan model
+
+requestedConsultSpan model =
+  span [ class "consultations", consultQueueStyle ] [
+    h2 [] [ text "REQUESTED" ],
+    div [ ] (showFilteredConsultations model "Requested")
   ]
+
+lockedConsultSpan model =
+  span [ class "consultations", consultQueueStyle ] [
+    h2 [] [ text "LOCKED" ],
+    div [ ] (showFilteredConsultations model "Locked")
+  ]
+
+cancelledConsultSpan model =
+  span [ class "consultations", consultQueueStyle ] [
+    h2 [] [ text "CANCELLED" ],
+    div [ ] (showFilteredConsultations model "Cancelled")
+  ]
+
+completedConsultSpan model =
+  span [ class "consultations", consultQueueStyle ] [
+    h2 [] [ text "COMPLETED" ],
+    div [ ] (showFilteredConsultations model "Completed")
+  ]
+
+teladocConsultationQueues model =
+  let
+    queues =
+      div [] [
+        classConsultSpan model "Requested"
+      , classConsultSpan model "Locked"
+      , classConsultSpan model "Cancelled"
+      , classConsultSpan model "Completed"
+      ]
+  in
+    div [] [ queues ]
 
 view : Model -> Html
 view model =
