@@ -302,16 +302,9 @@ completedConsultSpan model =
   ]
 
 teladocConsultationQueues model =
-  let
-    queues =
-      div [] [
-        classConsultSpan model "Requested"
-      , classConsultSpan model "Locked"
-      , classConsultSpan model "Cancelled"
-      , classConsultSpan model "Completed"
-      ]
-  in
-    div [] [ queues ]
+  div [] [
+    div [] (List.map (classConsultSpan model) model.displayedQueues )
+  ]
 
 view : Model -> Html
 view model =
