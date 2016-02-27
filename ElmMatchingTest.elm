@@ -169,7 +169,15 @@ update action model =
       in
         { model | consultations = List.map convert_consultation model.consultations }
     Complete consult ->
-      model
+      let
+        this_consult_id = consult.id
+        convert_consultation consultation =
+          if consultation.id == this_consult_id then
+            { consultation | status = "Completed" }
+          else
+            consultation
+      in
+        { model | consultations = List.map convert_consultation model.consultations }
     NoOp ->
       model
 
@@ -244,7 +252,7 @@ buttonText consult =
   else if consult.status == "Requested" then
     "Lock"
   else if consult.status == "Locked" then
-    "Unlock"
+    "Complete"
   else if consult.status == "Cancelled" then
     ""
   else
