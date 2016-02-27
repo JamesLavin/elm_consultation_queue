@@ -91,24 +91,16 @@ type alias Model =
   { consultations: List Consultation,
     providers: List Provider,
     members: List Member,
-    displayedQueues: List String,
-    author: String,
-    action_string : String,
-    newMessage : String,
-    messages : List String,
-    outgoingMessage : String }
+    displayedQueues: List String
+  }
 
 initialModel : Model
 initialModel =
   { consultations = consultationsList,
     providers = [],
     members = [],
-    displayedQueues = ["Requested", "Locked", "Cancelled", "Completed"],
-    author = "Geoffrey",
-    action_string = "",
-    newMessage = "",
-    messages = [],
-    outgoingMessage = "" }
+    displayedQueues = ["Requested", "Locked", "Cancelled", "Completed"]
+  }
 
 type Action =
   NewEvent (JsonEvent {})
