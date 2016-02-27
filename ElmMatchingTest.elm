@@ -146,20 +146,35 @@ requestedConsultStyle =
   style
     [ ("backgroundColor", "paleturquoise")
     , ("color", "purple")
-    , ("width", "100%") ]
+    , ("width", "100%")
+    , ("margin", "5px")
+    , ("border-style", "solid") ]
+
+cancelledConsultStyle : Attribute
+cancelledConsultStyle =
+  style
+    [ ("backgroundColor", "palegreen")
+    , ("color", "green")
+    , ("width", "100%")
+    , ("margin", "5px")
+    , ("border-style", "solid") ]
 
 lockedConsultStyle : Attribute
 lockedConsultStyle =
   style
     [ ("backgroundColor", "mistyrose")
     , ("color", "darkred")
-    , ("width", "100%") ]
+    , ("margin", "5px")
+    , ("width", "100%")
+    , ("border-style", "solid") ]
 
 completedConsultStyle : Attribute
 completedConsultStyle =
   style
     [ ("backgroundColor", "blanchedalmond")
-    , ("width", "100%") ]
+    , ("margin", "5px")
+    , ("width", "100%")
+    , ("border-style", "solid") ]
 
 consultStyle : Consultation -> Attribute
 consultStyle consult =
@@ -169,8 +184,15 @@ consultStyle consult =
     requestedConsultStyle
   else if consult.status == "Locked" then
     lockedConsultStyle
+  else if consult.status == "Cancelled" then
+    cancelledConsultStyle
   else
     lockedConsultStyle
+
+consultQueueStyle : Attribute
+consultQueueStyle =
+  style
+    [ ("width", "21%"), ("display", "inline-block"), ("margin", "1%"), ("vertical-align", "text-top") ]
 
 buttonText : Consultation -> String
 buttonText consult =
@@ -184,24 +206,24 @@ buttonText consult =
     ""
   else
     ""
-
 showConsultation : Consultation -> Html
 showConsultation consult =
-  div [] [
-    span [ class "consultation", (consultStyle consult) ] [
+  div [ (consultStyle consult) ] [
+    span [ class "consultation" ] [
       div [] [ text ("Consultation ID: " ++ (toString consult.id) ++ " / State: " ++ consult.state)],
       div [] [ text ("Status: " ++ consult.status ++ " / Specialty: " ++ consult.specialty)],
       div [] [ text ("Member: " ++ consult.member_name ++ " (ID: " ++ (toString consult.member_id) ++ ")")],
-      div [] [ (if consult.status /= "Completed" then (button [] [ text (buttonText consult) ]) else br [] []) ]
+      div [] [ (if (consult.status /= "Completed" && consult.status /= "Cancelled") then (button [] [ text (buttonText consult) ]) else br [] []) ]
     ]
   ]
+
+ticker : Signal.Signal Int
+ticker =
+  Signal.foldp (\_ val -> val + 1) 0 (Time.every Time.second)
 
 --allConsultations : Model -> VirtualDom.Node
 allConsultations model =
   List.map showConsultation model.consultations
-
---filteredConsultations model status =
---  List.map showConsultation (List.filter (\consult -> consult.status == status) model.consultations)
 
 filteredConsultations model status =
   List.filter (\consult -> consult.status == status) model.consultations
@@ -219,22 +241,22 @@ teladocHeadline =
 
 teladocConsultationQueues model =
   div [] [
-    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+    span [ class "consultations", consultQueueStyle ] [
       h2 [] [ text "REQUESTED" ],
       div [ ] (showFilteredConsultations model "Requested")
     ]
   ,
-    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+    span [ class "consultations", consultQueueStyle ] [
       h2 [] [ text "LOCKED" ],
       div [ ] (showFilteredConsultations model "Locked")
     ]
   ,
-    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+    span [ class "consultations", consultQueueStyle ] [
       h2 [] [ text "CANCELLED" ],
       div [ ] (showFilteredConsultations model "Cancelled")
     ]
   ,
-    span [ class "consultations", style [ ("width", "25%"), ("display", "inline-block"), ("vertical-align", "text-top") ] ] [
+    span [ class "consultations", consultQueueStyle ] [
       h2 [] [ text "COMPLETED" ],
       div [ ] (showFilteredConsultations model "Completed")
     ]
