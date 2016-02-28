@@ -3,7 +3,7 @@ module ElmConsultQueue where
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onClick, targetChecked)
+import Html.Events exposing (on, onClick, targetChecked, targetValue)
 import Time exposing (..)
 import Signal exposing (Address, foldp)
 import Array
@@ -237,6 +237,7 @@ requestedConsultStyle =
     , ("color", "purple")
     , ("width", "100%")
     , ("margin", "5px")
+    , ("padding", "5px")
     , ("border-style", "solid") ]
 
 cancelledConsultStyle : Attribute
@@ -246,6 +247,7 @@ cancelledConsultStyle =
     , ("color", "green")
     , ("width", "100%")
     , ("margin", "5px")
+    , ("padding", "5px")
     , ("border-style", "solid") ]
 
 lockedConsultStyle : Attribute
@@ -255,6 +257,7 @@ lockedConsultStyle =
     , ("color", "darkred")
     , ("margin", "5px")
     , ("width", "100%")
+    , ("padding", "5px")
     , ("border-style", "solid") ]
 
 completedConsultStyle : Attribute
@@ -263,6 +266,7 @@ completedConsultStyle =
     [ ("backgroundColor", "blanchedalmond")
     , ("margin", "5px")
     , ("width", "100%")
+    , ("padding", "5px")
     , ("border-style", "solid") ]
 
 consultStyle : Consultation -> Attribute
@@ -348,9 +352,15 @@ showFilteredConsultations address model status =
 teladocImg =
   img [ src "Teladoc_logo.jpg", style [ ("width", "150px"), ("height", "150px") ] ] []
 
+noJavascript =
+  h2 [ style [("float", "right"),
+              ("margin-right", "10px")]
+     ]
+     [ text "Look, Mom! No Javascript!" ]
+
 teladocHeadline =
   div [ class "header" ] [
-    h1 [] [ text "Super Amazingly Awesome Teladoc Consultation Queue" ]
+    h1 [] [ text "Super Amazingly Awesome Teladoc Consultation Queue Built With Elm" ]
   ]
 
 classConsultSpan address model class =
@@ -402,7 +412,9 @@ teladocConsultationQueues address model =
 
 --checkbox : Address Action -> Bool -> (Bool -> Action) -> String -> List Html
 checkbox address isChecked tag name =
-  div [] [
+  div [
+      style [("display", "inline-block"), ("margin-right", "8px")]
+    ] [
     input
       [ type' "checkbox"
       , checked isChecked
@@ -412,13 +424,31 @@ checkbox address isChecked tag name =
     , text name
   ]
 
+stateBox address =
+  div [
+      style [("display", "inline-block"), ("margin-right", "8px")]
+    ]
+    [
+      p [ style [("display", "inline-block"), ("margin-right", "8px")] ] [ text "Filter by state: "]
+    , input
+        [ type' "string"
+        , placeholder ""
+        , name "State"
+        , on "input" targetValue (\v -> Signal.message address (FilterState v))
+        , style [("display", "inline-block")]
+        ]
+        [ ]
+    ]
+
 view : Address Action -> Model -> Html
 view address model =
   div []
     [ teladocImg
+    , noJavascript
     , teladocHeadline
     , (checkbox address model.displayCancelled DisplayCancelled "Display cancelled?")
     , (checkbox address model.displayCompleted DisplayCompleted "Display completed?")
+    , (stateBox address)
 --    , teladocOptions address model
     , teladocConsultationQueues address model
     ]
