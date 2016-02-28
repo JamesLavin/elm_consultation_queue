@@ -97,6 +97,7 @@ type alias Model =
   , displayedQueues: List String
   , displayCancelled: Bool
   , displayCompleted: Bool
+  , filterState: String
   }
 
 initialModel : Model
@@ -107,11 +108,13 @@ initialModel =
   , displayedQueues = ["Cancelled", "Requested", "Locked", "Completed"]
   , displayCancelled = True
   , displayCompleted = True
+  , filterState = ""
   }
 
 type Action = NoOp
             | DisplayCancelled Bool
             | DisplayCompleted Bool
+            | FilterState String
             | NewEvent (JsonEvent {})
             | Lock Consultation
             | Complete Consultation
@@ -191,6 +194,8 @@ update action model =
       setDisplayCancelled model boolean
     DisplayCompleted boolean ->
       setDisplayCompleted model boolean
+    FilterState state ->
+      { model | filterState = state }
     Lock consult ->
       let
         this_consult_id = consult.id
@@ -327,7 +332,11 @@ ticker =
   Signal.foldp (\_ val -> val + 1) 0 (Time.every Time.second)
 
 filteredConsultations model status =
-  List.filter (\consult -> consult.status == status) model.consultations
+  case model.filterState of
+    "" ->
+      List.filter (\consult -> consult.status == status) model.consultations
+    _ ->
+      List.filter (\consult -> consult.state == model.filterState) (List.filter (\consult -> consult.status == status) model.consultations)
 
 --showAllConsultations : Model -> VirtualDom.Node
 showAllConsultations address model =
