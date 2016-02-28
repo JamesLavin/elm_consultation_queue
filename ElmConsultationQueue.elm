@@ -7,7 +7,10 @@ import Html.Events exposing (on, onClick, targetChecked, targetValue)
 import Time exposing (..)
 import Signal exposing (Address, foldp)
 --import Graphics.Input exposing (dropDown)
---import Random exposing (int)
+import Random exposing (int)
+
+randomBool =
+  Random.map ((==) 1) (Random.int 0 1)
 
 type alias Provider =
   { id: Int,
@@ -99,6 +102,7 @@ type alias Model =
   , filterState: String
   , filterSpecialty: String
   , selected: String
+  , nextConsultId: Int
   }
 
 initialModel : Model
@@ -112,9 +116,22 @@ initialModel =
   , filterState = ""
   , filterSpecialty = ""
   , selected = "All"
+  , nextConsultId = 2001
   }
 
+states = ["AL", "AK", "AS", "CA", "CT", "FL", "LA", "NC", "NM", "NY", "VA", "VT"]
+
+randomState seed =
+  let
+    int = fst (Random.generate (Random.int 0 ((List.length states) - 1)) (Random.initialSeed seed))
+    maybeState = List.head (List.drop int states)
+  in
+    case maybeState of
+      Just string -> string
+      Nothing -> ""
+
 type Action = NoOp
+            | AddConsultation Consultation
             | Specialty String
             | DisplayCancelled Bool
             | DisplayCompleted Bool
@@ -196,6 +213,8 @@ update action model =
   case action of
     NewEvent payload ->
       process_new_event payload model
+    AddConsultation consultation ->
+      { model | consultations = (consultation :: model.consultations) }
     Specialty specialty ->
       if specialty == "All" then
         { model | filterSpecialty = "All" }
@@ -348,6 +367,11 @@ ticker : Signal.Signal Int
 ticker =
   Signal.foldp (\_ val -> val + 1) 0 (Time.every Time.second)
 
+newConsultSignal : Signal.Signal Consultation
+newConsultSignal =
+  Signal.map (always initialConsultation1) ticker
+
+--addConsultation : Signal.Signal Consultation -> Model -> Model
 filteredConsultations model status =
   let
     stateFilteredConsults = case model.filterState of
@@ -437,6 +461,11 @@ teladocConsultationQueues address model =
     div [] (List.map (classConsultSpan address model) model.displayedQueues )
   ]
 
+teladocRandomState model =
+  div [] [
+    div [] [ text (randomState model.nextConsultId) ]
+  ]
+
 --checkbox : Address Action -> Bool -> (Bool -> Action) -> String -> List Html
 checkbox address isChecked tag name =
   div [
@@ -488,11 +517,22 @@ view address model =
     , (stateBox address)
 --    , teladocOptions address model
     , teladocConsultationQueues address model
+    , teladocRandomState model
     ]
+
+-- translate Signal.Signal (Maybe Consultation) -> Signal.Signal Action
+actions : Signal.Signal Action
+actions =
+  Signal.map (\consult -> AddConsultation consult) newConsultSignal
+
+allActions : Signal Action
+allActions =
+  Signal.mergeMany [inbox.signal, actions]
+
 
 modelSignal : Signal Model
 modelSignal =
-  Signal.foldp update initialModel inbox.signal
+  Signal.foldp update initialModel allActions
 
 main =
   Signal.map (view inbox.address) modelSignal
