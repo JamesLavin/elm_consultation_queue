@@ -6,9 +6,8 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, targetChecked, targetValue)
 import Time exposing (..)
 import Signal exposing (Address, foldp)
-import Array
+--import Graphics.Input exposing (dropDown)
 --import Random exposing (int)
---import StartApp.Simple as StartApp
 
 type alias Provider =
   { id: Int,
@@ -98,6 +97,8 @@ type alias Model =
   , displayCancelled: Bool
   , displayCompleted: Bool
   , filterState: String
+  , filterSpecialty: String
+  , selected: String
   }
 
 initialModel : Model
@@ -109,9 +110,12 @@ initialModel =
   , displayCancelled = True
   , displayCompleted = True
   , filterState = ""
+  , filterSpecialty = ""
+  , selected = "All"
   }
 
 type Action = NoOp
+            | Specialty String
             | DisplayCancelled Bool
             | DisplayCompleted Bool
             | FilterState String
@@ -190,6 +194,13 @@ update action model =
   case action of
     NewEvent payload ->
       process_new_event payload model
+    Specialty specialty ->
+      if specialty == "All" then
+        { model | filterSpecialty = "All" }
+      else if List.member specialty ["Behavioral Health", "General Medical", "Sexual Health"] then
+        { model | filterSpecialty = specialty }
+      else
+        { model | filterSpecialty = "All" }
     DisplayCancelled boolean ->
       setDisplayCancelled model boolean
     DisplayCompleted boolean ->
@@ -336,11 +347,25 @@ ticker =
   Signal.foldp (\_ val -> val + 1) 0 (Time.every Time.second)
 
 filteredConsultations model status =
-  case model.filterState of
-    "" ->
-      List.filter (\consult -> consult.status == status) model.consultations
-    _ ->
-      List.filter (\consult -> consult.state == model.filterState) (List.filter (\consult -> consult.status == status) model.consultations)
+  let
+    stateFilteredConsults = case model.filterState of
+      "" ->
+        List.filter (\consult -> consult.status == status) model.consultations
+      _ ->
+        List.filter (\consult -> consult.state == model.filterState) (List.filter (\consult -> consult.status == status) model.consultations)
+    consults = case model.filterSpecialty of
+      "All" ->
+        stateFilteredConsults
+      "General Medical" ->
+        List.filter (\consult -> consult.specialty == model.filterSpecialty) stateFilteredConsults
+      "Sexual Health" ->
+        List.filter (\consult -> consult.specialty == model.filterSpecialty) stateFilteredConsults
+      "Behavioral Health" ->
+        List.filter (\consult -> consult.specialty == model.filterSpecialty) stateFilteredConsults
+      _ ->
+        stateFilteredConsults
+  in
+    consults
 
 --showAllConsultations : Model -> VirtualDom.Node
 showAllConsultations address model =
@@ -440,6 +465,20 @@ stateBox address =
         [ ]
     ]
 
+specialtiesDropDown address model =
+  let
+    specialtiesList = ["All", "General Medical"]
+    selectEvent = on "change" targetValue (Signal.message address << Specialty)
+  in
+    div [ style [("display", "inline-block"), ("margin-right", "8px")] ]
+       [ select [ selectEvent ]
+            [ option [ value "All" ] [ text "All" ]
+            , option [ value "Behavioral Health" ] [ text "Behavioral Health" ]
+            , option [ value "General Medical" ] [ text "General Medical" ]
+            , option [ value "Sexual Health" ] [ text "Sexual Health" ]
+            ]
+       ]
+
 view : Address Action -> Model -> Html
 view address model =
   div []
@@ -448,6 +487,7 @@ view address model =
     , teladocHeadline
     , (checkbox address model.displayCancelled DisplayCancelled "Display cancelled?")
     , (checkbox address model.displayCompleted DisplayCompleted "Display completed?")
+    , specialtiesDropDown address model
     , (stateBox address)
 --    , teladocOptions address model
     , teladocConsultationQueues address model
