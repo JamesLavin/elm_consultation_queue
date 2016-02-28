@@ -189,6 +189,8 @@ setDisplayCompleted model boolean =
   else
     removeDisplayCompleted model
 
+specialtiesList = ["Behavioral Health", "General Medical", "Sexual Health"]
+
 update : Action -> Model -> Model
 update action model =
   case action of
@@ -197,7 +199,7 @@ update action model =
     Specialty specialty ->
       if specialty == "All" then
         { model | filterSpecialty = "All" }
-      else if List.member specialty ["Behavioral Health", "General Medical", "Sexual Health"] then
+      else if List.member specialty specialtiesList then
         { model | filterSpecialty = specialty }
       else
         { model | filterSpecialty = "All" }
@@ -467,16 +469,11 @@ stateBox address =
 
 specialtiesDropDown address model =
   let
-    specialtiesList = ["All", "General Medical"]
     selectEvent = on "change" targetValue (Signal.message address << Specialty)
   in
     div [ style [("display", "inline-block"), ("margin-right", "8px")] ]
        [ select [ selectEvent ]
-            [ option [ value "All" ] [ text "All" ]
-            , option [ value "Behavioral Health" ] [ text "Behavioral Health" ]
-            , option [ value "General Medical" ] [ text "General Medical" ]
-            , option [ value "Sexual Health" ] [ text "Sexual Health" ]
-            ]
+         ( List.map (\specialty -> (option [ value specialty ] [ text specialty ] ) ) ("All" :: specialtiesList) )
        ]
 
 view : Address Action -> Model -> Html
