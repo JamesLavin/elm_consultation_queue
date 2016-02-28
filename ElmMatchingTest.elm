@@ -91,24 +91,27 @@ consultationsList = [ initialConsultation1,
                       initialConsultation6 ]
 
 type alias Model =
-  { consultations: List Consultation,
-    providers: List Provider,
-    members: List Member,
-    displayedQueues: List String,
-    displayRequested: Bool
+  { consultations: List Consultation
+  , providers: List Provider
+  , members: List Member
+  , displayedQueues: List String
+  , displayCancelled: Bool
+  , displayCompleted: Bool
   }
 
 initialModel : Model
 initialModel =
-  { consultations = consultationsList,
-    providers = [],
-    members = [],
-    displayedQueues = ["Requested", "Locked", "Cancelled", "Completed"],
-    displayRequested = True
+  { consultations = consultationsList
+  , providers = []
+  , members = []
+  , displayedQueues = ["Cancelled", "Requested", "Locked", "Completed"]
+  , displayCancelled = True
+  , displayCompleted = True
   }
 
 type Action = NoOp
-            | DisplayRequested Bool
+            | DisplayCancelled Bool
+            | DisplayCompleted Bool
             | NewEvent (JsonEvent {})
             | Lock Consultation
             | Complete Consultation
@@ -136,28 +139,58 @@ type alias LockConsultationPayload =
   { id: Int
   , provider_id: Int }
 
-addDisplayRequested model =
-  if (List.member "Requested" model.displayedQueues) then
-    model
+-- removeFromList i xs =
+--   (List.take i xs) ++ (List.drop (i+1) xs)
+
+addDisplayCancelled model =
+  if (List.member "Cancelled" model.displayedQueues) then
+    { model | displayCancelled = True }
   else
-    { model | displayedQueues = "Requested" :: model.displayedQueues }
+    { model | displayCancelled = True
+            , displayedQueues = "Cancelled" :: model.displayedQueues }
 
-removeFromList i xs =
-  (List.take i xs) ++ (List.drop (i+1) xs)
-
-removeDisplayRequested model =
-  if (List.member "Requested" model.displayedQueues) then
-    { model | displayedQueues = List.filter (\displayedQueue -> displayedQueue /= "Requested") model.displayedQueues }
+removeDisplayCancelled model =
+  if (List.member "Cancelled" model.displayedQueues) then
+    { model | displayCancelled = False
+            , displayedQueues = List.filter (\displayedQueue -> displayedQueue /= "Cancelled") model.displayedQueues }
   else
-    model
+    { model | displayCancelled = True }
 
---update : Action -> Model -> Model
+setDisplayCancelled model boolean =
+  if boolean then
+    addDisplayCancelled model
+  else
+    removeDisplayCancelled model
+
+addDisplayCompleted model =
+  if (List.member "Completed" model.displayedQueues) then
+    { model | displayCompleted = True }
+  else
+    { model | displayCompleted = True
+            , displayedQueues = List.append model.displayedQueues ["Completed"] }
+
+removeDisplayCompleted model =
+  if (List.member "Completed" model.displayedQueues) then
+    { model | displayCompleted = False
+            , displayedQueues = List.filter (\displayedQueue -> displayedQueue /= "Completed") model.displayedQueues }
+  else
+    { model | displayCompleted = True }
+
+setDisplayCompleted model boolean =
+  if boolean then
+    addDisplayCompleted model
+  else
+    removeDisplayCompleted model
+
+update : Action -> Model -> Model
 update action model =
   case action of
     NewEvent payload ->
       process_new_event payload model
-    DisplayRequested boolean ->
-      model
+    DisplayCancelled boolean ->
+      setDisplayCancelled model boolean
+    DisplayCompleted boolean ->
+      setDisplayCompleted model boolean
     Lock consult ->
       let
         this_consult_id = consult.id
@@ -240,10 +273,17 @@ consultStyle consult =
   else
     lockedConsultStyle
 
-consultQueueStyle : Attribute
-consultQueueStyle =
-  style
-    [ ("width", "21%"), ("display", "inline-block"), ("margin", "1%"), ("vertical-align", "text-top") ]
+consultQueueStyle : Model -> Attribute
+consultQueueStyle model =
+  let
+    width = case (List.length model.displayedQueues) of
+      4 -> "21%"
+      3 -> "28%"
+      2 -> "42%"
+      _ -> "21%"
+  in
+    style
+      [ ("width", width), ("display", "inline-block"), ("margin", "1%"), ("vertical-align", "text-top") ]
 
 buttonText : Consultation -> String
 buttonText consult =
@@ -318,25 +358,25 @@ classConsultSpan address model class =
       completedConsultSpan address model
 
 requestedConsultSpan address model =
-  span [ class "consultations", consultQueueStyle ] [
+  span [ class "consultations", (consultQueueStyle model) ] [
     h2 [] [ text "REQUESTED" ],
     div [ ] (showFilteredConsultations address model "Requested")
   ]
 
 lockedConsultSpan address model =
-  span [ class "consultations", consultQueueStyle ] [
+  span [ class "consultations", (consultQueueStyle model) ] [
     h2 [] [ text "LOCKED" ],
     div [ ] (showFilteredConsultations address model "Locked")
   ]
 
 cancelledConsultSpan address model =
-  span [ class "consultations", consultQueueStyle ] [
+  span [ class "consultations", (consultQueueStyle model) ] [
     h2 [] [ text "CANCELLED" ],
     div [ ] (showFilteredConsultations address model "Cancelled")
   ]
 
 completedConsultSpan address model =
-  span [ class "consultations", consultQueueStyle ] [
+  span [ class "consultations", (consultQueueStyle model) ] [
     h2 [] [ text "COMPLETED" ],
     div [ ] (showFilteredConsultations address model "Completed")
   ]
@@ -351,16 +391,16 @@ teladocConsultationQueues address model =
     div [] (List.map (classConsultSpan address model) model.displayedQueues )
   ]
 
-checkbox : Address Action -> Bool -> (Bool -> Action) -> String -> List Html
+--checkbox : Address Action -> Bool -> (Bool -> Action) -> String -> List Html
 checkbox address isChecked tag name =
-  [ input
+  div [] [
+    input
       [ type' "checkbox"
       , checked isChecked
       , on "change" targetChecked (Signal.message address << tag)
       ]
       []
-  , text name
-  , br [] []
+    , text name
   ]
 
 view : Address Action -> Model -> Html
@@ -368,6 +408,8 @@ view address model =
   div []
     [ teladocImg
     , teladocHeadline
+    , (checkbox address model.displayCancelled DisplayCancelled "Display cancelled?")
+    , (checkbox address model.displayCompleted DisplayCompleted "Display completed?")
 --    , teladocOptions address model
     , teladocConsultationQueues address model
     ]
