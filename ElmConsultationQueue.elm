@@ -9,9 +9,6 @@ import Signal exposing (Address, foldp)
 --import Graphics.Input exposing (dropDown)
 import Random exposing (int)
 
-randomBool =
-  Random.map ((==) 1) (Random.int 0 1)
-
 type alias Provider =
   { id: Int,
     name: String,
@@ -129,6 +126,48 @@ randomState seed =
     case maybeState of
       Just string -> string
       Nothing -> ""
+
+statuses = ["Requested", "Locked", "Cancelled", "Completed"]
+
+randomStatus seed =
+  let
+    int = fst (Random.generate (Random.int 0 ((List.length statuses) - 1)) (Random.initialSeed seed))
+    maybeStatus = List.head (List.drop int statuses)
+  in
+    case maybeStatus of
+      Just string -> string
+      Nothing -> ""
+
+randomSpecialty seed =
+  let
+    int = fst (Random.generate (Random.int 0 ((List.length specialtiesList) - 1)) (Random.initialSeed seed))
+    maybeSpecialty = List.head (List.drop int specialtiesList)
+  in
+    case maybeSpecialty of
+      Just string -> string
+      Nothing -> ""
+
+firstNames = ["John", "Mary", "Pete", "Stan", "Rocky", "Bulwinkle", "Frosty", "Casper", "Ronald", "Tom", "Peter", "Shiv"]
+lastNames = ["McDougle", "Brownstein", "Milgrom", "French", "O'Connell", "Smith", "Skywalker", "Parker", "Carver", "Singh"]
+
+randomMemberName seed =
+  let
+    firstInt = fst (Random.generate (Random.int 0 ((List.length firstNames) - 1)) (Random.initialSeed seed))
+    maybeFirstName = List.head (List.drop firstInt firstNames)
+    secondInt = fst (Random.generate (Random.int 0 ((List.length lastNames) - 1)) (Random.initialSeed seed))
+    maybeLastName = List.head (List.drop secondInt lastNames)
+  in
+    case (maybeFirstName, maybeLastName) of
+      (Just first, Just last) -> first ++ " " ++ last
+      _ -> ""
+
+randomConsult seed =
+  { id = seed,
+    state = randomState seed,
+    status = randomStatus seed,
+    specialty = randomSpecialty seed,
+    member_id = seed,
+    member_name = randomMemberName seed }
 
 type Action = NoOp
             | AddConsultation Consultation
@@ -365,20 +404,22 @@ showConsultation address consult =
 
 ticker : Signal.Signal Int
 ticker =
-  Signal.foldp (\_ val -> val + 1) 0 (Time.every Time.second)
+  Signal.foldp (\_ val -> val + 1) 2010 (Time.every (10 * Time.second))
 
 newConsultSignal : Signal.Signal Consultation
 newConsultSignal =
-  Signal.map (always initialConsultation1) ticker
+  Signal.map (\ticker -> randomConsult ticker) ticker
 
 --addConsultation : Signal.Signal Consultation -> Model -> Model
 filteredConsultations model status =
   let
+    statusFilteredConsults =
+      List.filter (\consult -> consult.status == status) model.consultations
     stateFilteredConsults = case model.filterState of
       "" ->
-        List.filter (\consult -> consult.status == status) model.consultations
+        statusFilteredConsults
       _ ->
-        List.filter (\consult -> consult.state == model.filterState) (List.filter (\consult -> consult.status == status) model.consultations)
+        List.filter (\consult -> consult.state == model.filterState) statusFilteredConsults
     consults = case model.filterSpecialty of
       "All" ->
         stateFilteredConsults
@@ -528,7 +569,6 @@ actions =
 allActions : Signal Action
 allActions =
   Signal.mergeMany [inbox.signal, actions]
-
 
 modelSignal : Signal Model
 modelSignal =
