@@ -6,7 +6,6 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, targetChecked, targetValue)
 import Time exposing (..)
 import Signal exposing (Address, foldp)
---import Graphics.Input exposing (dropDown)
 import Random exposing (int)
 
 type alias Provider =
@@ -100,6 +99,7 @@ type alias Model =
   , filterSpecialty: String
   , selected: String
   , nextConsultId: Int
+  , seed: Random.Seed
   }
 
 initialModel : Model
@@ -114,14 +114,15 @@ initialModel =
   , filterSpecialty = ""
   , selected = "All"
   , nextConsultId = 2001
+  , seed = Random.initialSeed 77777
   }
 
 states = ["AL", "AK", "AS", "CA", "CT", "FL", "LA", "NC", "NM", "NY", "VA", "VT"]
 
-randomState seed =
+randomState int =
   let
-    int = fst (Random.generate (Random.int 0 ((List.length states) - 1)) (Random.initialSeed seed))
-    maybeState = List.head (List.drop int states)
+    index = int % (List.length states)
+    maybeState = List.head (List.drop index states)
   in
     case maybeState of
       Just string -> string
@@ -129,19 +130,19 @@ randomState seed =
 
 statuses = ["Requested", "Locked", "Cancelled", "Completed"]
 
-randomStatus seed =
+randomStatus int =
   let
-    int = fst (Random.generate (Random.int 0 ((List.length statuses) - 1)) (Random.initialSeed seed))
-    maybeStatus = List.head (List.drop int statuses)
+    index = int % (List.length statuses)
+    maybeStatus = List.head (List.drop index statuses)
   in
     case maybeStatus of
       Just string -> string
       Nothing -> ""
 
-randomSpecialty seed =
+randomSpecialty int =
   let
-    int = fst (Random.generate (Random.int 0 ((List.length specialtiesList) - 1)) (Random.initialSeed seed))
-    maybeSpecialty = List.head (List.drop int specialtiesList)
+    index = int % (List.length specialtiesList)
+    maybeSpecialty = List.head (List.drop index specialtiesList)
   in
     case maybeSpecialty of
       Just string -> string
@@ -150,27 +151,27 @@ randomSpecialty seed =
 firstNames = ["John", "Mary", "Pete", "Stan", "Rocky", "Bulwinkle", "Frosty", "Casper", "Ronald", "Tom", "Peter", "Shiv"]
 lastNames = ["McDougle", "Brownstein", "Milgrom", "French", "O'Connell", "Smith", "Skywalker", "Parker", "Carver", "Singh"]
 
-randomMemberName seed =
+randomMemberName int =
   let
-    firstInt = fst (Random.generate (Random.int 0 ((List.length firstNames) - 1)) (Random.initialSeed seed))
+    firstInt = int % (List.length firstNames)
     maybeFirstName = List.head (List.drop firstInt firstNames)
-    secondInt = fst (Random.generate (Random.int 0 ((List.length lastNames) - 1)) (Random.initialSeed seed))
+    secondInt = int % (List.length lastNames)
     maybeLastName = List.head (List.drop secondInt lastNames)
   in
     case (maybeFirstName, maybeLastName) of
       (Just first, Just last) -> first ++ " " ++ last
       _ -> ""
 
-randomConsult seed =
-  { id = seed,
-    state = randomState seed,
-    status = randomStatus seed,
-    specialty = randomSpecialty seed,
-    member_id = seed,
-    member_name = randomMemberName seed }
+randomConsult int =
+  { id = int,
+    state = randomState int,
+    status = randomStatus int,
+    specialty = randomSpecialty int,
+    member_id = int,
+    member_name = randomMemberName int }
 
 type Action = NoOp
-            | AddConsultation Consultation
+            | AddConsultation
             | Specialty String
             | DisplayCancelled Bool
             | DisplayCompleted Bool
@@ -247,13 +248,20 @@ setDisplayCompleted model boolean =
 
 specialtiesList = ["Behavioral Health", "General Medical", "Sexual Health"]
 
+randInt = Random.int 1 10000
+
 update : Action -> Model -> Model
 update action model =
   case action of
     NewEvent payload ->
       process_new_event payload model
-    AddConsultation consultation ->
-      { model | consultations = (consultation :: model.consultations) }
+    AddConsultation ->
+      let
+        (value', seed') = Random.generate randInt model.seed
+        consultation = randomConsult value'
+      in
+        { model | consultations = (consultation :: model.consultations)
+                , seed = seed' }
     Specialty specialty ->
       if specialty == "All" then
         { model | filterSpecialty = "All" }
@@ -402,15 +410,19 @@ showConsultation address consult =
     ]
   ]
 
-ticker : Signal.Signal Int
-ticker =
-  Signal.foldp (\_ val -> val + 1) 2010 (Time.every (10 * Time.second))
+--ticker : Signal.Signal Int
+--ticker =
+  --Signal.foldp (\_ val -> val + 1) 2010 (Time.every (10 * Time.second))
+  --Signal.map (\_ -> rand) (Time.every (5 * Time.second))
 
-newConsultSignal : Signal.Signal Consultation
-newConsultSignal =
-  Signal.map (\ticker -> randomConsult ticker) ticker
+addConsultationTicker : Signal.Signal Action
+addConsultationTicker =
+  Signal.map (\_ -> AddConsultation) (Time.every (5 * Time.second))
 
---addConsultation : Signal.Signal Consultation -> Model -> Model
+--newConsultSignal : Signal.Signal Consultation
+--newConsultSignal =
+--  Signal.map (\ticker -> randomConsult ticker) ticker
+
 filteredConsultations model status =
   let
     statusFilteredConsults =
@@ -434,7 +446,6 @@ filteredConsultations model status =
   in
     consults
 
---showAllConsultations : Model -> VirtualDom.Node
 showAllConsultations address model =
   List.map (showConsultation address) model.consultations
 
@@ -491,11 +502,6 @@ completedConsultSpan address model =
     h2 [] [ text "COMPLETED" ],
     div [ ] (showFilteredConsultations address model "Completed")
   ]
-
---teladocOptions address model =
---  div [] [
---    checkbox address model.displayRequested DisplayRequested "Show requested"
---  ]
 
 teladocConsultationQueues address model =
   div [] [
@@ -556,19 +562,18 @@ view address model =
     , (checkbox address model.displayCompleted DisplayCompleted "Display completed?")
     , specialtiesDropDown address model
     , (stateBox address)
---    , teladocOptions address model
     , teladocConsultationQueues address model
-    , teladocRandomState model
     ]
 
 -- translate Signal.Signal (Maybe Consultation) -> Signal.Signal Action
-actions : Signal.Signal Action
-actions =
-  Signal.map (\consult -> AddConsultation consult) newConsultSignal
+--actions : Signal.Signal Action
+--actions =
+--  Signal.map (\consult -> NoOp) newConsultSignal
+--  --Signal.map (\consult -> AddConsultation consult) newConsultSignal
 
 allActions : Signal Action
 allActions =
-  Signal.mergeMany [inbox.signal, actions]
+  Signal.mergeMany [inbox.signal, addConsultationTicker]
 
 modelSignal : Signal Model
 modelSignal =
