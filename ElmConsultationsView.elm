@@ -162,6 +162,7 @@ type Action = NoOp
             | UpdateMessage String
             | UpdateAuthor String
             | NewEvent CreateConsultEvent
+            | AddConsultation Consultation
             | Send
 --            | NewEvent LockConsultEvent
 --            | NewEvent CompleteConsultEvent
@@ -177,6 +178,8 @@ update action model =
       { model | newMessage = message }
     UpdateAuthor author ->
       { model | author = author }
+    AddConsultation consultation ->
+      { model | consultations = (consulation :: model.consultations) }
     NewEvent event ->
       { model | consultations = (event.payload :: model.consultations) }
 --    NewEvent LockConsultEvent ->
@@ -309,18 +312,14 @@ port outgoingMessage : Signal String
 port outgoingMessage =
   Signal.dropRepeats (Signal.map .outgoingMessage modelSignal)
 
--- MAIN
-inbox : Signal.Mailbox Action
-inbox =
-  Signal.mailbox NoOp
-
 --actions : Signal Action
 --actions =
 --  Signal.mergeMany [inbox.signal, (Signal.dropRepeats (Signal.map Add incomingMessages)), newConsultSignal]
 
-actions : Signal (Maybe Consultation)
+-- translate Signal.Signal (Maybe Consultation) -> Signal.Signal Action
+actions : Signal.Signal Action
 actions =
-  newConsultSignal
+  Signal.map (\consult -> AddConsultation consult) newConsultSignal
 
 modelSignal : Signal Model
 modelSignal =
@@ -328,5 +327,4 @@ modelSignal =
 
 main : Signal Html
 main =
---  Signal.map (view inbox.address) model
   Signal.map (view inbox.address) modelSignal
